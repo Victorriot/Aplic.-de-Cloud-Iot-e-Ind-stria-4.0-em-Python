@@ -1,0 +1,55 @@
+import Adafruit_DHT
+import paho.mqtt.client as mqtt
+import time
+
+# Configurações do sensor DHT22
+DHT_SENSOR = Adafruit_DHT.DHT22
+DHT_PIN = 4  # Pino GPIO no qual o sensor está conectado
+
+# Configurações do broker MQTT
+MQTT_BROKER = "broker.hivemq.com"  # Pode ser alterado para um broker privado
+MQTT_PORT = 1883
+MQTT_TOPIC_TEMPERATURA = "iot/estacao_climatica/temperatura"
+MQTT_TOPIC_UMIDADE = "iot/estacao_climatica/umidade"
+
+# Função de callback para conexão MQTT
+def on_connect(client, userdata, flags, rc):
+    print(f"Conectado ao broker MQTT com código de resultado {rc}")
+
+# Função de envio dos dados para o broker MQTT
+def enviar_dados_mqtt(temperatura, umidade):
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    
+    # Conecta ao broker MQTT
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+
+    # Publica os dados de temperatura e umidade nos tópicos específicos
+    client.publish(MQTT_TOPIC_TEMPERATURA, f"{temperatura:.2f}")
+    client.publish(MQTT_TOPIC_UMIDADE, f"{umidade:.2f}")
+
+    # Finaliza a conexão MQTT
+    client.disconnect()
+
+# Função principal para leitura do sensor e envio dos dados
+def executar_estacao_climatica():
+    while True:
+        # Lê os valores de temperatura e umidade do sensor
+        umidade, temperatura = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
+
+        if umidade is not None and temperatura is not None:
+            print(f"Temperatura: {temperatura:.2f}°C  Umidade: {umidade:.2f}%")
+            
+            # Envia os dados para o broker MQTT
+            enviar_dados_mqtt(temperatura, umidade)
+        else:
+            print("Falha na leitura do sensor. Tentando novamente...")
+
+        # Aguarda 10 segundos antes de ler os dados novamente
+        time.sleep(10)
+
+if __name__ == "__main__":
+    try:
+        executar_estacao_climatica()
+    except KeyboardInterrupt:
+        print("Estação Climatica encerrada.")
